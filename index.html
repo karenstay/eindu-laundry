@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="my">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<meta name="theme-color" content="#1A7A6E"/>
+<title>🧺 Ein Du Laundry</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+body{font-family:'Segoe UI','Noto Sans Myanmar',sans-serif;background:#F0F4F3;color:#1C2B2A;}
+@keyframes slideIn{from{transform:translateX(60px);opacity:0}to{transform:translateX(0);opacity:1}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.fu{animation:fadeUp 0.2s ease;}
+input,textarea,button{font-family:inherit;}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const{useState,useEffect}=React;
+const SK="eindu_orders";
+const load=()=>{try{const s=localStorage.getItem(SK);return s?JSON.parse(s):[]}catch{return[]}};
+const save=(o)=>{try{localStorage.setItem(SK,JSON.stringify(o))}catch{}};
+const SVCS=[
+  {id:"wash",en:"Wash Only",mm:"ဆေးကြောသာ",price:2000,icon:"🫧"},
+  {id:"washDry",en:"Wash + Dry",mm:"ဆေး + ခြောက်",price:4000,icon:"☀️"},
+  {id:"washFold",en:"Wash + Fold",mm:"ဆေး + ချုပ်",price:5000,icon:"👕"},
+  {id:"dropoff",en:"Drop-off",mm:"ထားခဲ့",price:3000,icon:"📦"},
+  {id:"blanket",en:"Blanket",mm:"စောင်ကြီး",price:8000,icon:"🛏️"},
+  {id:"express",en:"Express +2hrs",mm:"အလျင်အမြန်",price:5500,icon:"⚡"},
+];
+const PMTS=[
+  {id:"cash",label:"Cash",mm:"ငွေသား",icon:"💵"},
+  {id:"kbz",label:"KBZPay",mm:"KBZPay",icon:"📱"},
+  {id:"wave",label:"WavePay",mm:"WavePay",icon:"🌊"},
+];
+const ST={
+  pending:{en:"Pending",mm:"စောင့်ဆိုင်းဆဲ",color:"#D97706",bg:"#FEF3C7",next:"washing",nl:"Start Washing | ဆေးစပါ"},
+  washing:{en:"Washing",mm:"ဆေးကြောနေ",color:"#2563EB",bg:"#DBEAFE",next:"drying",nl:"Move to Dry | ခြောက်ရန်"},
+  drying:{en:"Drying",mm:"ခြောက်သွေ့နေ",color:"#7C3AED",bg:"#EDE9FE",next:"ready",nl:"Mark Ready | အသင့်ဖြစ်ပြီ"},
+  ready:{en:"Ready",mm:"ထုတ်ရန်အသင့်",color:"#059669",bg:"#D1FAE5",next:"collected",nl:"Collected | ထုတ်ပြီ"},
+  collected:{en:"Collected",mm:"ထုတ်ပြီး",color:"#6B7280",bg:"#F3F4F6",next:null,nl:""},
+};
+const T="#1A7A6E",TL="#E8F5F3",G="#F0B429",W="#FFFFFF",GR="#6B7280";
+const fmt=(n)=>Number(n).toLocaleString()+" Ks";
+const fmtD=()=>new Date().toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"});
+const fmtT=()=>new Date().toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"});
+const dk=()=>new Date().toISOString().slice(0,10);
+let _c=1;
+const nid=()=>String(_c++).padStart(3,"0");
+const inp={padding:"10px 14px",borderRadius:10,border:"1.5px solid #E5E7EB",fontSize:14,background:"#FAFAFA",width:"100%",boxSizing:"border-box"};
+
+function Badge({status}){const s=ST[status];return <span style={{background:s.bg,color:s.color,fontWeight:700,fontSize:11,padding:"3px 10px",borderRadius:20,whiteSpace:"nowrap"}}>{s.mm}</span>;}
+
+function NewOrder({onSave,onCancel}){
+  const[f,setF]=useState({name:"",phone:"",svc:SVCS[0],loads:1,pmt:PMTS[0],pickTime:"14:00",note:""});
+  const[err,setErr]=useState("");
+  const total=f.svc.price*f.loads;
+  const submit=()=>{
+    if(!f.name.trim()){setErr("ဖောက်သည်အမည်ဖြည့်ပါ — Enter name");return;}
+    if(!f.phone.trim()){setErr("ဖုန်းနံပါတ်ဖြည့်ပါ — Enter phone");return;}
+    onSave({id:nid(),...f,service:f.svc,payment:f.pmt,status:"pending",dropTime:fmtT(),date:dk(),total});
+  };
+  return <div style={{padding:16,display:"flex",flexDirection:"column",gap:14}}>
+    <div><label style={{fontSize:12,fontWeight:700,display:"block",marginBottom:4}}>👤 Customer Name | ဖောက်သည်အမည် *</label>
+    <input value={f.name} onChange={e=>setF({...f,name:e.target.value})} placeholder="e.g. Daw Mu Mu" style={inp}/></div>
+    <div><label style={{fontSize:12,fontWeight:700,display:"block",marginBottom:4}}>📞 Phone | ဖုန်းနံပါတ် *</label>
+    <input value={f.phone} onChange={e=>setF({...f,phone:e.target.value})} placeholder="09-XXXX-XXXX" style={inp}/></div>
+    <div><label style={{fontSize:12,fontWeight:700,display:"block",marginBottom:8}}>🧺 Service | ဝန်ဆောင်မှု</label>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+      {SVCS.map(s=><button key={s.id} onClick={()=>setF({...f,svc:s})} style={{padding:"10px 8px",borderRadius:10,border:`2px solid ${f.svc.id===s.id?T:"#E5E7EB"}`,background:f.svc.id===s.id?TL:W,cursor:"pointer",textAlign:"left"}}>
+        <div style={{fontSize:18}}>{s.icon}</div>
+        <div style={{fontSize:11,fontWeight:700,color:f.svc.id===s.id?T:"#374151"}}>{s.en}</div>
+        <div style={{fontSize:10,color:GR}}>{s.mm}</div>
+        <div style={{fontSize:12,fontWeight:700,color:G}}>{fmt(s.price)}</div>
+      </button>)}
+    </div></div>
+    <div><label style={{fontSize:12,fontWeight:700,display:"block",marginBottom:4}}>🔢 Loads | ကြိမ်ရေ</label>
+    <div style={{display:"flex",alignItems:"center",gap:14}}>
+      <button onClick={()=>setF({...f,loads:Math.max(1,f.loads-1)})} style={{width:36,height:36,borderRadius:8,border:"1.5px solid #E5E7EB",background:"#F9FAFB",cursor:"pointer",fontSize:20,fontWeight:700}}>−</button>
+      <span style={{fontSize:24,fontWeight:800,color:T,minWidth:32,textAlign:"center"}}>{f.loads}</span>
+      <button onClick={()=>setF({...f,loads:f.loads+1})} style={{width:36,height:36,borderRadius:8,border:"1.5px solid #E5E7EB",background:"#F9FAFB",cursor:"pointer",fontSize:20,fontWeight:700}}>+</button>
+      <span style={{color:GR,fontSize:13}}>= <strong style={{color:T}}>{fmt(total)}</strong></span>
+    </div></div>
+    <div><label style={{fontSize:12,fontWeight:700,display:"block",marginBottom:8}}>💳 Payment | ငွေပေးနည်း</label>
+    <div style={{display:"flex",gap:8}}>
+      {PMTS.map(p=><button key={p.id} onClick={()=>setF({...f,pmt:p})} style={{flex:1,padding:"10px 6px",borderRadius:10,border:`2px solid ${f.pmt.id===p.id?T:"#E5E7EB"}`,background:f.pmt.id===p.id?TL:W,cursor:"pointer",color:f.pmt.id===p.id?T:"#374151",fontWeight:600,fontSize:11}}>
+        <div style={{fontSize:18,marginBottom:2}}>{p.icon}</div>{p.label}
+      </button>)}
+    </div></div>
+    <div><label style={{fontSize:12,fontWeight:700,display:"block",marginBottom:4}}>⏰ Pick-up | ထုတ်ချိန်</label>
+    <input type="time" value={f.pickTime} onChange={e=>setF({...f,pickTime:e.target.value})} style={inp}/></div>
+    <div><label style={{fontSize:12,fontWeight:700,display:"block",marginBottom:4}}>📝 Notes | မှတ်ချက်</label>
+    <textarea value={f.note} onChange={e=>setF({...f,note:e.target.value})} placeholder="Special instructions..." rows={2} style={{...inp,resize:"none"}}/></div>
+    <div style={{background:TL,borderRadius:12,padding:"14px 16px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+      <span style={{fontWeight:700,color:T}}>Total | စုစုပေါင်း</span>
+      <span style={{fontSize:22,fontWeight:800,color:T}}>{fmt(total)}</span>
+    </div>
+    {err&&<div style={{background:"#FEE2E2",color:"#DC2626",borderRadius:10,padding:"10px 14px",fontSize:13,fontWeight:600}}>⚠️ {err}</div>}
+    <div style={{display:"flex",gap:10}}>
+      <button onClick={onCancel} style={{flex:"0 0 38%",padding:"12px",borderRadius:12,border:"1px solid #E5E7EB",background:"transparent",cursor:"pointer",fontWeight:700,fontSize:13,color:GR}}>Cancel</button>
+      <button onClick={submit} style={{flex:1,padding:"12px",borderRadius:12,border:"none",background:T,color:W,fontWeight:700,fontSize:13,cursor:"pointer",boxShadow:"0 4px 12px rgba(26,122,110,0.3)"}}>✅ Confirm | တင်မည်</button>
+    </div>
+  </div>;
+}
+
+function OrderItem({order,onUpdate,onDelete}){
+  const[open,setOpen]=useState(false);
+  const s=ST[order.status];
+  return <div className="fu" style={{background:W,borderRadius:14,marginBottom:10,boxShadow:"0 1px 6px rgba(0,0,0,0.07)",overflow:"hidden",borderLeft:`4px solid ${s.color}`}}>
+    <div onClick={()=>setOpen(!open)} style={{padding:"12px 14px",cursor:"pointer",display:"flex",alignItems:"center",gap:10}}>
+      <span style={{fontWeight:800,color:T,fontSize:12,background:TL,padding:"2px 8px",borderRadius:6}}>#{order.id}</span>
+      <div style={{flex:1}}>
+        <div style={{fontWeight:700,fontSize:14}}>{order.name}</div>
+        <div style={{fontSize:11,color:GR}}>{order.service.icon} {order.service.en} · {order.dropTime}→{order.pickTime}</div>
+      </div>
+      <div style={{textAlign:"right"}}>
+        <Badge status={order.status}/>
+        <div style={{fontWeight:800,color:T,fontSize:13,marginTop:4}}>{fmt(order.total)}</div>
+      </div>
+      <span style={{color:GR,marginLeft:4}}>{open?"▲":"▼"}</span>
+    </div>
+    {open&&<div style={{borderTop:"1px solid #F3F4F6"}}>
+      <div style={{padding:"12px 14px",display:"grid",gridTemplateColumns:"1fr 1fr",gap:"8px 16px",fontSize:12}}>
+        {[["📞",order.phone],["🧺",order.service.en],["🔢",order.loads+" load(s)"],["💳",order.payment.icon+" "+order.payment.label],["📥","In: "+order.dropTime],["📤","Out: "+order.pickTime]].map(([k,v])=>
+          <div key={k}><span style={{color:GR}}>{k} </span><strong>{v}</strong></div>)}
+        {order.note&&<div style={{gridColumn:"1/-1",fontStyle:"italic",color:GR}}>📝 {order.note}</div>}
+      </div>
+      <div style={{padding:"10px 14px",borderTop:"1px solid #F3F4F6",display:"flex",gap:8}}>
+        {s.next
+          ?<button onClick={()=>onUpdate(order.id,s.next)} style={{flex:1,padding:10,borderRadius:10,border:"none",background:T,color:W,fontWeight:700,fontSize:12,cursor:"pointer"}}>→ {s.nl}</button>
+          :<div style={{flex:1,textAlign:"center",color:GR,fontSize:12,padding:10}}>✅ Completed</div>}
+        <button onClick={()=>onDelete(order.id)} style={{padding:"10px 14px",borderRadius:10,border:"none",background:"#FEE2E2",color:"#DC2626",cursor:"pointer",fontSize:16}}>🗑</button>
+      </div>
+    </div>}
+  </div>;
+}
+
+function App(){
+  const[view,setView]=useState("dashboard");
+  const[orders,setOrders]=useState(load);
+  const[filter,setFilter]=useState("all");
+  const[search,setSearch]=useState("");
+  const[toast,setToast]=useState(null);
+  useEffect(()=>save(orders),[orders]);
+  const msg=(m,type="ok")=>{setToast({m,type});setTimeout(()=>setToast(null),2800);};
+  const addOrder=(o)=>{setOrders(p=>[o,...p]);msg("အမှာ #"+o.id+" မှတ်တမ်းတင်ပြီး ✓");setView("orders");};
+  const updStatus=(id,st)=>{setOrders(p=>p.map(o=>o.id===id?{...o,status:st}:o));msg("#"+id+" → "+ST[st].mm);};
+  const delOrder=(id)=>{if(!confirm("Delete order #"+id+"?"))return;setOrders(p=>p.filter(o=>o.id!==id));msg("#"+id+" ဖျက်ပြီ","warn");};
+  const today=dk();
+  const todayO=orders.filter(o=>o.date===today);
+  const revenue=todayO.filter(o=>o.status==="collected").reduce((s,o)=>s+o.total,0);
+  const active=orders.filter(o=>o.status!=="collected").length;
+  const ready=orders.filter(o=>o.status==="ready").length;
+  const filtered=orders.filter(o=>(filter==="all"||o.status===filter)&&(!search||o.name.toLowerCase().includes(search.toLowerCase())||o.phone.includes(search)||o.id.includes(search)));
+  const NAV=[{id:"dashboard",icon:"📊",en:"Dashboard",mm:"ပင်မ"},{id:"newOrder",icon:"➕",en:"New Order",mm:"အမှာသစ်"},{id:"orders",icon:"📋",en:"Orders",mm:"အမှာများ"},{id:"report",icon:"💰",en:"Report",mm:"စာရင်း"}];
+
+  return <div style={{maxWidth:720,margin:"0 auto",minHeight:"100vh",background:"#F0F4F3"}}>
+    {toast&&<div style={{position:"fixed",top:16,right:16,zIndex:9999,background:toast.type==="warn"?"#F59E0B":T,color:W,padding:"12px 20px",borderRadius:12,boxShadow:"0 4px 20px rgba(0,0,0,0.2)",fontSize:14,fontWeight:600,animation:"slideIn 0.3s ease",maxWidth:300}}>{toast.m}</div>}
+    <div style={{background:T,padding:"0 20px",boxShadow:"0 2px 16px rgba(26,122,110,0.3)",position:"sticky",top:0,zIndex:200}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",height:58}}>
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          <span style={{fontSize:26}}>🧺</span>
+          <div><div style={{color:W,fontWeight:800,fontSize:16}}>Ein Du Laundry</div>
+          <div style={{color:"rgba(255,255,255,0.7)",fontSize:10}}>အိမ်နီးစပ် အဝတ်လျှော်ဆိုင် · Order Manager</div></div>
+        </div>
+        <div style={{color:G,fontWeight:700,fontSize:12}}>{fmtD()}</div>
+      </div>
+    </div>
+    <div style={{background:W,borderBottom:"1px solid #E5E7EB",display:"flex",position:"sticky",top:58,zIndex:100}}>
+      {NAV.map(tab=><button key={tab.id} onClick={()=>setView(tab.id)} style={{flex:1,padding:"10px 4px",border:"none",background:"transparent",cursor:"pointer",borderBottom:view===tab.id?"3px solid "+T:"3px solid transparent",color:view===tab.id?T:GR}}>
+        <div style={{fontSize:19}}>{tab.icon}</div>
+        <div style={{fontSize:10,fontWeight:700}}>{tab.en}</div>
+        <div style={{fontSize:9,color:view===tab.id?T:"#9CA3AF"}}>{tab.mm}</div>
+      </button>)}
+    </div>
+    <div style={{padding:"16px 14px 60px"}}>
+      {view==="dashboard"&&<div>
+        {ready>0&&<div style={{background:"#D1FAE5",border:"1px solid #6EE7B7",borderRadius:12,padding:"12px 16px",marginBottom:14,display:"flex",gap:10,alignItems:"center"}}>
+          <span style={{fontSize:22}}>🔔</span><div><div style={{fontWeight:700,color:"#065F46",fontSize:14}}>{ready} order{ready>1?"s":""} ready!</div><div style={{fontSize:12,color:"#047857"}}>ထုတ်ရန်အသင့် {ready} ခု</div></div>
+        </div>}
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
+          {[[":💵","Today Revenue\nယနေ့ဝင်ငွေ",fmt(revenue),T],[":🔄","Active\nလက်ရှိအမှာ",active,"#2563EB"],[":✅","Ready\nထုတ်ရန်သင့်",ready,"#059669"],[":📦","Total\nစုစုပေါင်း",orders.length,"#7C3AED"]].map(([ico,lbl,val,col])=>
+            <div key={ico} style={{background:W,borderRadius:14,padding:16,boxShadow:"0 1px 6px rgba(0,0,0,0.07)",borderLeft:"4px solid "+col}}>
+              <div style={{fontSize:22}}>{ico.slice(1)}</div>
+              <div style={{fontSize:18,fontWeight:800,color:col,marginTop:4}}>{val}</div>
+              <div style={{fontSize:11,color:GR,lineHeight:1.5,marginTop:2,whiteSpace:"pre-line"}}>{lbl}</div>
+            </div>)}
+        </div>
+        <button onClick={()=>setView("newOrder")} style={{width:"100%",padding:"13px",borderRadius:12,border:"none",background:T,color:W,fontWeight:700,fontSize:14,cursor:"pointer",boxShadow:"0 4px 12px rgba(26,122,110,0.3)",marginBottom:16}}>➕ New Order | အမှာသစ်တင်ရန်</button>
+        <div style={{background:W,borderRadius:16,boxShadow:"0 2px 12px rgba(0,0,0,0.07)",overflow:"hidden"}}>
+          <div style={{background:T,padding:"14px 16px",color:W,fontWeight:700,fontSize:13}}>🕐 Recent Orders | လတ်တလောအမှာများ</div>
+          {orders.slice(0,6).map(o=><div key={o.id} style={{padding:"12px 16px",borderBottom:"1px solid #F9FAFB",display:"flex",alignItems:"center",gap:10}}>
+            <Badge status={o.status}/>
+            <div style={{flex:1}}><div style={{fontWeight:700,fontSize:13}}>{o.name}</div><div style={{fontSize:11,color:GR}}>{o.service.icon} {o.service.en} · #{o.id}</div></div>
+            <div style={{fontWeight:800,color:T,fontSize:13}}>{fmt(o.total)}</div>
+          </div>)}
+          {orders.length===0&&<div style={{padding:32,textAlign:"center",color:GR}}><div style={{fontSize:36,marginBottom:8}}>📭</div>No orders yet</div>}
+        </div>
+      </div>}
+      {view==="newOrder"&&<div style={{background:W,borderRadius:16,boxShadow:"0 2px 12px rgba(0,0,0,0.07)",overflow:"hidden"}}>
+        <div style={{background:T,padding:"14px 16px"}}><div style={{color:W,fontWeight:700,fontSize:15}}>➕ New Order | အမှာသစ်</div><div style={{color:"rgba(255,255,255,0.75)",fontSize:11,marginTop:2}}>ဖောက်သည်အချက်အလက်ဖြည့်ပါ</div></div>
+        <NewOrder onSave={addOrder} onCancel={()=>setView("dashboard")}/>
+      </div>}
+      {view==="orders"&&<div>
+        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="🔍 Search name / phone / # ..." style={{...inp,marginBottom:10,borderRadius:12}}/>
+        <div style={{display:"flex",gap:6,marginBottom:14,overflowX:"auto",paddingBottom:4}}>
+          {["all",...Object.keys(ST)].map(s=>{const cfg=s==="all"?{mm:"အားလုံး",color:T,bg:TL}:ST[s];const cnt=s==="all"?orders.length:orders.filter(o=>o.status===s).length;
+            return <button key={s} onClick={()=>setFilter(s)} style={{padding:"6px 12px",borderRadius:20,flexShrink:0,border:"1.5px solid "+(filter===s?cfg.color:"#E5E7EB"),background:filter===s?(ST[s]?.bg||TL):W,color:filter===s?cfg.color:GR,fontWeight:700,fontSize:11,cursor:"pointer",whiteSpace:"nowrap"}}>{cfg.mm} ({cnt})</button>;
+          })}
+        </div>
+        {filtered.length===0&&<div style={{textAlign:"center",padding:48,color:GR}}><div style={{fontSize:40}}>📭</div><div style={{marginTop:8}}>No orders found</div></div>}
+        {filtered.map(o=><OrderItem key={o.id} order={o} onUpdate={updStatus} onDelete={delOrder}/>)}
+      </div>}
+      {view==="report"&&<div>
+        <div style={{background:W,borderRadius:16,boxShadow:"0 2px 12px rgba(0,0,0,0.07)",overflow:"hidden",marginBottom:14}}>
+          <div style={{background:T,padding:"14px 16px",color:W,fontWeight:700,fontSize:14}}>💰 Today | ယနေ့ — {fmtD()}</div>
+          <div style={{padding:16}}>
+            {[["📦 Total orders",todayO.length],["✅ Completed",todayO.filter(o=>o.status==="collected").length],["🔄 Active",todayO.filter(o=>o.status!=="collected").length]].map(([l,v])=>
+              <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"12px 0",borderBottom:"1px solid #F3F4F6",fontSize:14}}><span>{l}</span><strong style={{color:T,fontSize:16}}>{v}</strong></div>)}
+            <div style={{display:"flex",justifyContent:"space-between",paddingTop:14,alignItems:"center"}}>
+              <span style={{fontWeight:700,fontSize:15}}>💵 Revenue | ဝင်ငွေ</span>
+              <span style={{fontWeight:800,fontSize:22,color:T}}>{fmt(revenue)}</span>
+            </div>
+          </div>
+        </div>
+        <div style={{background:W,borderRadius:16,boxShadow:"0 2px 12px rgba(0,0,0,0.07)",overflow:"hidden",marginBottom:14}}>
+          <div style={{padding:"12px 16px",fontWeight:700,fontSize:13,borderBottom:"1px solid #F3F4F6"}}>💳 Payment Breakdown</div>
+          <div style={{padding:"0 16px"}}>
+            {PMTS.map(p=>{const amt=todayO.filter(o=>o.status==="collected"&&o.payment.id===p.id).reduce((s,o)=>s+o.total,0);
+              return <div key={p.id} style={{display:"flex",justifyContent:"space-between",padding:"12px 0",borderBottom:"1px solid #F9FAFB",fontSize:14}}><span>{p.icon} {p.label}</span><strong style={{color:amt>0?T:GR}}>{fmt(amt)}</strong></div>;})}
+          </div>
+        </div>
+        <div style={{background:W,borderRadius:16,boxShadow:"0 2px 12px rgba(0,0,0,0.07)",overflow:"hidden"}}>
+          <div style={{padding:"12px 16px",fontWeight:700,fontSize:13,borderBottom:"1px solid #F3F4F6"}}>🧺 Service Breakdown</div>
+          <div style={{padding:"0 16px"}}>
+            {SVCS.map(s=>{const cnt=todayO.filter(o=>o.service.id===s.id).length;const rev=todayO.filter(o=>o.service.id===s.id&&o.status==="collected").reduce((sum,o)=>sum+o.total,0);
+              return <div key={s.id} style={{display:"flex",justifyContent:"space-between",padding:"12px 0",borderBottom:"1px solid #F9FAFB",fontSize:13}}><span>{s.icon} {s.en}</span><span style={{color:cnt>0?T:GR,fontWeight:700}}>{cnt} · {fmt(rev)}</span></div>;})}
+          </div>
+        </div>
+      </div>}
+    </div>
+  </div>;
+}
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
