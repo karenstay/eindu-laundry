@@ -48,3 +48,4 @@ const nextId   = () => String(_counter++).padStart(3, "0");
 const TEAL  = "#1A7A6E";
 const TEALL = "#E8F5F3";
 const GOLD  = "#F0B429";
+export default App;
